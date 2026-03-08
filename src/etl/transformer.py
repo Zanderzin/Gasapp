@@ -67,6 +67,15 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
     df = df.dropna(subset=["data_coleta", "preco_revenda"])
     df = df[df["preco_revenda"] > 0]
 
+    # Marca GLP (vendido em botijao 13kg, nao em litro) para nao misturar com combustiveis liquidos
+    df["is_botijao"] = df["produto"] == "GLP"
+    
+    # Substitui NAN no nome fantasia pela razao social
+    df["nome_fantasia"] = df.apply(
+        lambda r: r["razao_social"] if str(r["nome_fantasia"]).upper() in ["NAN", "", "NONE"] else r["nome_fantasia"],
+        axis=1
+    )
+
     # Padroniza texto
     text_cols = ["estado", "municipio", "produto", "bandeira", "unidade", "razao_social", "nome_fantasia", "bairro"]
     for col in text_cols:
@@ -181,6 +190,8 @@ if __name__ == "__main__":
     print(f"\nColunas: {df.columns.tolist()}")
     print(f"\nProdutos: {df['produto'].unique()}")
     print(f"\nPeriodo: {df['data_coleta'].min()} ate {df['data_coleta'].max()}")
+
+
 
 
 
