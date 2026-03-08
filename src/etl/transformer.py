@@ -76,6 +76,50 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
     # Filtra apenas Distrito Federal
     df = df[df["estado"] == "DISTRITO FEDERAL"]
 
+    # Extrai regiao a partir do campo bairro
+    # Ex: "AREA DE DESENVOLVIMENTO ECONOMICO (AGUAS CLARAS)" -> regiao = "AGUAS CLARAS"
+    # Ex: "AGUAS CLARAS" -> regiao = "AGUAS CLARAS"
+    def extrair_regiao(bairro):
+        import re
+        match = re.search(r'\((.+?)\)', str(bairro))
+        if match:
+            return match.group(1).strip()
+        return str(bairro).strip()
+
+    df['regiao'] = df['bairro'].apply(extrair_regiao)
+
+    # Normaliza grafias inconsistentes de regioes
+    normalizacao = {
+        # Aguas Claras
+        "AGUAS CLARAS":         "AGUAS CLARAS",
+        "AGUAAS CLARAS":        "AGUAS CLARAS",
+        "AGUAS CLARAS":         "AGUAS CLARAS",
+        # Ceilandia
+        "CEILANDIA":            "CEILANDIA",
+        "CEILANDIA NORTE":      "CEILANDIA NORTE",
+        # Gama
+        "GAMA-DF":              "GAMA",
+        # Samambaia
+        "SAMABAIA":             "SAMAMBAIA",
+        "SAMAMBIA":             "SAMAMBAIA",
+        "SAMAMBAIA - SUL":      "SAMAMBAIA SUL",
+        # Taguatinga
+        "TAGUATINGA.":          "TAGUATINGA",
+        # Nucleo Bandeirante
+        "N BANDEIRANTE":        "NUCLEO BANDEIRANTE",
+        # Areal Aguas Claras (sem parenteses, regiao errada)
+        "AREAL AGUAS CLARAS":   "AGUAS CLARAS",
+    }
+    df['regiao'] = df['regiao'].str.strip()
+
+    # Remove acentos para padronizar
+    import unicodedata
+    def remove_acentos(texto):
+        return unicodedata.normalize('NFKD', str(texto)).encode('ascii', 'ignore').decode('ascii')
+
+    df['regiao'] = df['regiao'].apply(remove_acentos).str.upper().str.strip()
+    df['regiao'] = df['regiao'].replace(normalizacao)
+
     # Padroniza CNPJ e CEP (so numeros)
     for col in ["cnpj", "cep"]:
         if col in df.columns:
@@ -137,4 +181,6 @@ if __name__ == "__main__":
     print(f"\nColunas: {df.columns.tolist()}")
     print(f"\nProdutos: {df['produto'].unique()}")
     print(f"\nPeriodo: {df['data_coleta'].min()} ate {df['data_coleta'].max()}")
+
+
 
