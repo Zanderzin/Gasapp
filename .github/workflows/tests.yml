@@ -11,8 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v4
         with:
           python-version: "3.11"
-      - run: pip install pandas numpy scikit-learn statsmodels loguru pytest pytest-cov
-      - run: pytest tests/ -v --cov=src
+
+      - name: Instalar dependencias
+        run: |
+          pip install --upgrade pip
+          pip install pandas numpy scikit-learn statsmodels loguru pytest pytest-cov openpyxl pyarrow
+
+      - name: Rodar testes
+        run: pytest tests/ -v --cov=src --cov-report=term-missing
