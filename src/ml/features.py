@@ -8,7 +8,7 @@ def add_time_features(df: pd.DataFrame, date_col: str = "data_coleta") -> pd.Dat
     df = df.copy()
     df["mes"] = df[date_col].dt.month
     df["trimestre"] = df[date_col].dt.quarter
-    df["semana_ano"] = df[date_col].dt.isocalendar().week.astype(int)
+    df["semana_ano"] = df[date_col].dt.isocalendar().week.fillna(0).astype(int)
     df["ano"] = df[date_col].dt.year
     df["dia_semana"] = df[date_col].dt.dayofweek
     df["mes_sin"] = np.sin(2 * np.pi * df["mes"] / 12)
@@ -95,3 +95,4 @@ def build_features(
     if drop_na:
         df = df.dropna(subset=["target"])
     return df
+

@@ -63,9 +63,12 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
         errors="coerce"
     )
 
-    # Remove linhas sem data ou sem preco
-    df = df.dropna(subset=["data_coleta", "preco_revenda"])
-    df = df[df["preco_revenda"] > 0]
+ # Remove datas futuras (erros de digitacao ANP)
+    hoje = pd.Timestamp.now().normalize()
+    n_futuro = (df["data_coleta"] > hoje).sum()
+    if n_futuro > 0:
+        logger.warning(f"Removendo {n_futuro} registros com data futura")
+        df = df[df["data_coleta"] <= hoje]
 
     # Marca GLP (vendido em botijao 13kg, nao em litro) para nao misturar com combustiveis liquidos
     df["is_botijao"] = df["produto"] == "GLP"
@@ -190,6 +193,7 @@ if __name__ == "__main__":
     print(f"\nColunas: {df.columns.tolist()}")
     print(f"\nProdutos: {df['produto'].unique()}")
     print(f"\nPeriodo: {df['data_coleta'].min()} ate {df['data_coleta'].max()}")
+
 
 
 
