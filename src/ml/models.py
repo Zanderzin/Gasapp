@@ -67,3 +67,60 @@ def train_test_split_temporal(
         f" | teste: {len(test):,} ({test[date_col].min().date()} a {test[date_col].max().date()})"
     )
     return train, test
+
+
+class XGBoostModel:
+    """XGBoost com features de serie temporal."""
+
+    def __init__(self, params: dict = None):
+        from xgboost import XGBRegressor
+        self.name = "xgboost"
+        self.params = params or {
+            "n_estimators": 500,
+            "learning_rate": 0.05,
+            "max_depth": 5,
+            "subsample": 0.8,
+            "colsample_bytree": 0.8,
+            "random_state": 42,
+            "n_jobs": -1,
+        }
+        self.model = XGBRegressor(**self.params)
+        self.feature_cols = None
+
+    FEATURE_COLS = [
+        "mes_sin", "mes_cos", "semana_sin", "semana_cos",
+        "mes", "trimestre", "semana_ano",
+        "preco_revenda_lag_1", "preco_revenda_lag_2",
+        "preco_revenda_lag_4", "preco_revenda_lag_8", "preco_revenda_lag_12",
+        "preco_revenda_ma_4", "preco_revenda_ma_8", "preco_revenda_ma_12",
+        "preco_revenda_std_4", "preco_revenda_std_8", "preco_revenda_std_12",
+        "preco_medio_regiao", "diff_regiao",
+        "delta_lag_1", "delta_lag_2", "delta_4s",
+        "preco_medio_df_lag1",
+    ]
+
+    def fit(self, train: pd.DataFrame) -> None:
+        self.feature_cols = [c for c in self.FEATURE_COLS if c in train.columns]
+        X = train[self.feature_cols]
+        y = train["target"]
+        self.model.fit(X, y, verbose=False)
+        logger.info(f"XGBoost treinado | features: {len(self.feature_cols)} | amostras: {len(train):,}")
+
+    def predict(self, df: pd.DataFrame) -> pd.Series:
+        X = df[self.feature_cols]
+        return pd.Series(self.model.predict(X), index=df.index)
+
+    def evaluate(self, test: pd.DataFrame) -> dict:
+        df_valid = test.dropna(subset=self.feature_cols + ["target"])
+        y_true = df_valid["target"]
+        y_pred = self.predict(df_valid)
+        return evaluate(y_true, y_pred, self.name)
+
+    def feature_importance(self) -> pd.DataFrame:
+        return pd.DataFrame({
+            "feature": self.feature_cols,
+            "importance": self.model.feature_importances_,
+        }).sort_values("importance", ascending=False)
+
+
+

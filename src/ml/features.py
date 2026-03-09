@@ -15,6 +15,9 @@ def add_time_features(df: pd.DataFrame, date_col: str = "data_coleta") -> pd.Dat
     df["mes_cos"] = np.cos(2 * np.pi * df["mes"] / 12)
     df["semana_sin"] = np.sin(2 * np.pi * df["semana_ano"] / 52)
     df["semana_cos"] = np.cos(2 * np.pi * df["semana_ano"] / 52)
+    df["delta_lag_1"] = df.groupby(["cnpj", "produto"])["preco_revenda"].diff(1)
+    df["delta_lag_2"] = df.groupby(["cnpj", "produto"])["preco_revenda"].diff(2)
+    df["delta_4s"] = df.groupby(["cnpj", "produto"])["preco_revenda"].diff(4)
     return df
 
 
@@ -70,6 +73,15 @@ def add_regional_features(df: pd.DataFrame, target: str = "preco_revenda") -> pd
     )
     df = df.merge(media_regional, on=["regiao", "produto", "data_coleta"], how="left")
     df["diff_regiao"] = df[target] - df["preco_medio_regiao"]
+    # Preco medio do DF na semana anterior (proxy da tendencia macro)
+    media_df = (
+        df.groupby(["produto", "data_coleta"])["preco_revenda"]
+        .mean()
+        .reset_index()
+        .rename(columns={"preco_revenda": "preco_medio_df"})
+    )
+    media_df["preco_medio_df_lag1"] = media_df.groupby("produto")["preco_medio_df"].shift(1)
+    df = df.merge(media_df[["produto", "data_coleta", "preco_medio_df_lag1"]], on=["produto", "data_coleta"], how="left")
     return df
 
 
@@ -94,5 +106,15 @@ def build_features(
     df = add_target(df, target=target, horizonte=horizonte)
     if drop_na:
         df = df.dropna(subset=["target"])
+    return df
+
+
+
+def add_delta_target(df: pd.DataFrame, target: str = "preco_revenda", horizonte: int = 1) -> pd.DataFrame:
+    """Target como variacao de preco em vez de valor absoluto."""
+    df = df.copy()
+    prox = df.groupby(["cnpj", "produto"])[target].shift(-horizonte)
+    df["target_delta"] = prox - df[target]
+    df["target"] = prox
     return df
 
